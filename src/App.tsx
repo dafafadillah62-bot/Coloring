@@ -8,7 +8,10 @@ import {
   Palette as PaletteIcon, 
   Sparkles,
   Home,
-  Grid
+  Grid,
+  Settings,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { COLORING_IMAGES, ColoringImage } from './constants';
 import { ColoringCanvas } from './components/ColoringCanvas';
@@ -38,6 +41,9 @@ export default function App() {
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [activeColor, setActiveColor] = useState(PALETTE[0]);
   const [showColorWheel, setShowColorWheel] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [customApiKey, setCustomApiKey] = useState(localStorage.getItem('custom_gemini_api_key') || '');
+  const [error, setError] = useState<string | null>(null);
 
   const filteredImages = COLORING_IMAGES.filter(img => img.category === selectedCategory);
 
@@ -45,13 +51,40 @@ export default function App() {
     setSelectedImage(img);
     setView('studio');
     setGeneratedUrl(null);
-    const url = await generateLineArt(img.prompt);
-    setGeneratedUrl(url);
+    setError(null);
+    try {
+      // Pass img.id for caching
+      const url = await generateLineArt(img.prompt, img.id);
+      setGeneratedUrl(url);
+    } catch (err: any) {
+      setError(err.message);
+    }
   };
 
   const handleBack = () => {
+    setError(null);
     if (view === 'studio') setView('gallery');
     else if (view === 'gallery') setView('home');
+  };
+
+  const saveApiKey = () => {
+    if (customApiKey.trim()) {
+      localStorage.setItem('custom_gemini_api_key', customApiKey.trim());
+    } else {
+      localStorage.removeItem('custom_gemini_api_key');
+    }
+    setShowSettings(false);
+    window.location.reload(); // Reload to apply new key
+  };
+
+  const clearCache = () => {
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith('cache_img_')) {
+        localStorage.removeItem(key);
+      }
+    });
+    window.location.reload();
   };
 
   return (
@@ -80,14 +113,12 @@ export default function App() {
           >
             <Home size={20} />
           </button>
-          {selectedCategory && (
-            <button 
-              onClick={() => setView('gallery')}
-              className={cn("p-2 rounded-xl transition-all", view === 'gallery' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : "hover:bg-gray-100")}
-            >
-              <Grid size={20} />
-            </button>
-          )}
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-all text-gray-500"
+          >
+            <Settings size={20} />
+          </button>
         </div>
       </nav>
 
@@ -96,24 +127,44 @@ export default function App() {
           {view === 'home' && (
             <motion.div 
               key="home"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+              transition={{ type: "spring", damping: 20, stiffness: 100 }}
               className="grid grid-cols-1 md:grid-cols-3 gap-8"
             >
               <div className="col-span-full text-center mb-8">
-                <h2 className="text-4xl font-black text-gray-900 mb-4">Ayo Mewarnai!</h2>
-                <p className="text-gray-500 text-lg">Pilih kategori yang kamu suka</p>
+                <motion.h2 
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-4xl font-black text-gray-900 mb-4"
+                >
+                  Ayo Mewarnai!
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-gray-500 text-lg"
+                >
+                  Pilih kategori yang kamu suka
+                </motion.p>
               </div>
-              {CATEGORIES.map((cat) => (
-                <button
+              {CATEGORIES.map((cat, idx) => (
+                <motion.button
                   key={cat.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * idx + 0.4, type: "spring" }}
                   onClick={() => {
                     setSelectedCategory(cat.id);
                     setView('gallery');
                   }}
+                  whileHover={{ scale: 1.05, rotate: idx % 2 === 0 ? 1 : -1 }}
+                  whileTap={{ scale: 0.95 }}
                   className={cn(
-                    "group relative aspect-[4/5] rounded-[40px] overflow-hidden shadow-xl transition-all hover:scale-[1.02] active:scale-95",
+                    "group relative aspect-[4/5] rounded-[40px] overflow-hidden shadow-xl transition-all",
                     cat.color
                   )}
                 >
@@ -129,7 +180,7 @@ export default function App() {
                       50 Gambar Seru
                     </p>
                   </div>
-                </button>
+                </motion.button>
               ))}
             </motion.div>
           )}
@@ -137,24 +188,52 @@ export default function App() {
           {view === 'gallery' && (
             <motion.div 
               key="gallery"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ type: "spring", damping: 25, stiffness: 120 }}
               className="space-y-8"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-black text-gray-900">
+                <motion.h2 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-3xl font-black text-gray-900"
+                >
                   Koleksi {CATEGORIES.find(c => c.id === selectedCategory)?.name}
-                </h2>
-                <span className="bg-indigo-100 text-indigo-600 px-4 py-2 rounded-full font-bold">
+                </motion.h2>
+                <motion.span 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="bg-indigo-100 text-indigo-600 px-4 py-2 rounded-full font-bold"
+                >
                   {filteredImages.length} Gambar
-                </span>
+                </motion.span>
               </div>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              <motion.div 
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.05
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+              >
                 {filteredImages.map((img, idx) => (
-                  <button
+                  <motion.button
                     key={img.id}
+                    variants={{
+                      hidden: { opacity: 0, scale: 0.8, y: 20 },
+                      show: { opacity: 1, scale: 1, y: 0 }
+                    }}
+                    whileHover={{ scale: 1.05, y: -5 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => handleSelectImage(img)}
                     className="group bg-white p-4 rounded-3xl shadow-sm hover:shadow-xl transition-all border-2 border-transparent hover:border-indigo-400 text-left"
                   >
@@ -165,18 +244,19 @@ export default function App() {
                       <PaletteIcon className="text-gray-200 group-hover:scale-110 transition-transform" size={48} />
                     </div>
                     <h4 className="font-bold text-gray-700 truncate">{img.title}</h4>
-                  </button>
+                  </motion.button>
                 ))}
-              </div>
+              </motion.div>
             </motion.div>
           )}
 
           {view === 'studio' && selectedImage && (
             <motion.div 
               key="studio"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.8, rotateY: 90 }}
+              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+              exit={{ opacity: 0, scale: 0.8, rotateY: -90 }}
+              transition={{ type: "spring", damping: 20, stiffness: 100 }}
               className="flex flex-col items-center gap-8"
             >
               <div className="text-center">
@@ -184,7 +264,23 @@ export default function App() {
                 <p className="text-gray-500">Ketuk area untuk mewarnai!</p>
               </div>
 
-              {generatedUrl ? (
+              {error ? (
+                <div className="w-full max-w-[600px] aspect-square bg-white rounded-3xl shadow-xl flex flex-col items-center justify-center p-12 text-center gap-6">
+                  <div className="bg-red-50 p-6 rounded-full text-red-500">
+                    <AlertCircle size={64} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-gray-900">Waduh, Ada Masalah!</h3>
+                    <p className="text-gray-500">{error}</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowSettings(true)}
+                    className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:scale-105 transition-transform"
+                  >
+                    Buka Pengaturan API
+                  </button>
+                </div>
+              ) : generatedUrl ? (
                 <ColoringCanvas 
                   imageUrl={generatedUrl} 
                   selectedColor={activeColor}
@@ -242,6 +338,77 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettings && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSettings(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-2xl font-black text-gray-900">Pengaturan</h3>
+                  <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                    <X size={24} />
+                  </button>
+                </div>
+                
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Gemini API Key</label>
+                    <input 
+                      type="password"
+                      value={customApiKey}
+                      onChange={(e) => setCustomApiKey(e.target.value)}
+                      placeholder="Masukkan API Key kamu..."
+                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-6 py-4 focus:border-indigo-500 focus:outline-none transition-all font-mono"
+                    />
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                      Gunakan API Key sendiri jika kuota harian aplikasi habis. Dapatkan gratis di <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-indigo-600 underline">Google AI Studio</a>.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-indigo-50 rounded-2xl space-y-2">
+                    <h4 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                      <Sparkles size={16} /> Panduan Deployment
+                    </h4>
+                    <ul className="text-xs text-indigo-700 space-y-1 list-disc list-inside">
+                      <li><b>Netlify:</b> Tambahkan <code className="bg-indigo-100 px-1 rounded">VITE_GEMINI_API_KEY</code> di Site Settings.</li>
+                      <li><b>WebToApps:</b> Gunakan fitur "Add to Home Screen" untuk menginstal aplikasi ini.</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={clearCache}
+                      className="flex-1 bg-gray-100 text-gray-600 py-4 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                    >
+                      Hapus Cache
+                    </button>
+                    <button 
+                      onClick={saveApiKey}
+                      className="flex-[2] bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-100 hover:scale-[1.02] active:scale-95 transition-all"
+                    >
+                      Simpan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Footer Info */}
       {view === 'home' && (

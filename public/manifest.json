@@ -1,0 +1,21 @@
+{
+  "name": "Warna-Warni Cilik",
+  "short_name": "WarnaCilik",
+  "description": "Aplikasi mewarnai interaktif untuk anak-anak.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFCF0",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/coloring/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/coloring/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

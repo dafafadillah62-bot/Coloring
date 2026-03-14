@@ -69,15 +69,18 @@ export const ColoringCanvas: React.FC<ColoringCanvasProps> = ({ imageUrl, select
     const targetColor = getPixelColor(startX, startY);
     const fillRGB = hexToRgb(fillColor);
 
-    // Don't fill if target is black (outline) or same as fill color
+    // Optimization: Don't fill if target is black (outline) or same as fill color
     if (isBlack(targetColor) || colorsMatch(targetColor, [fillRGB.r, fillRGB.g, fillRGB.b, 255])) return;
 
-    const stack = [[startX, startY]];
+    const stack: [number, number][] = [[startX, startY]];
+    const w = canvas.width;
+    const h = canvas.height;
+
     while (stack.length > 0) {
       const [x, y] = stack.pop()!;
-      const index = (y * canvas.width + x) * 4;
+      const index = (y * w + x) * 4;
 
-      if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) continue;
+      if (x < 0 || x >= w || y < 0 || y >= h) continue;
       if (!colorsMatch(getPixelColor(x, y), targetColor)) continue;
 
       pixels[index] = fillRGB.r;
@@ -85,7 +88,11 @@ export const ColoringCanvas: React.FC<ColoringCanvasProps> = ({ imageUrl, select
       pixels[index + 2] = fillRGB.b;
       pixels[index + 3] = 255;
 
-      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      // Add neighbors to stack
+      if (x + 1 < w) stack.push([x + 1, y]);
+      if (x - 1 >= 0) stack.push([x - 1, y]);
+      if (y + 1 < h) stack.push([x, y + 1]);
+      if (y - 1 >= 0) stack.push([x, y - 1]);
     }
 
     ctx.putImageData(imageData, 0, 0);
