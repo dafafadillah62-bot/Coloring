@@ -29,11 +29,13 @@ export async function generateLineArt(prompt: string, id: string): Promise<strin
 
   const ai = new GoogleGenAI({ apiKey });
 
+  const lineArtPrompt = `Simple black and white line art for a children's coloring book. Clean bold outlines, no shading, no colors, plain white background. Subject: ${prompt}`;
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [{ text: prompt }],
+        parts: [{ text: lineArtPrompt }],
       },
       config: {
         imageConfig: {
